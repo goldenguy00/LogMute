@@ -1,10 +1,16 @@
 using BepInEx;
+using BepInEx.Configuration;
+using BepInEx.Logging;
 using HarmonyLib;
 using MonoMod.Cil;
 using MonoMod.RuntimeDetour;
 using RoR2;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.Networking;
+using static RoR2.Console;
 
 namespace LogMute
 {
@@ -15,6 +21,10 @@ namespace LogMute
         public const string PluginAuthor = "score";
         public const string PluginName = "LogMute";
         public const string PluginVersion = "1.0.0";
+        public static Harmony Harmony;
+        public static ConfigFile Config;
+        public static List<Regex> LogMuteCustom = [];
+        public static bool RegexExclude(string content) => !LogMuteCustom.Any(x => x.IsMatch(content));
 
         private static void Fuck(object you) { }
         private static void FuckUnity(object you, Object fuck) { }
@@ -23,6 +33,19 @@ namespace LogMute
 
         public void Awake()
         {
+            Harmony = new(PluginGUID);
+            Config = new(System.IO.Path.Combine(Paths.ConfigPath, PluginGUID + ".cfg"), true);
+            var _LogMuteExact = Config.Bind("General", "Exact Matches to Filter", "Teambuff", "List of exact matches to filter, separated by comma. accepts regex patterns.");
+            var _LogMuteStartWith = Config.Bind("General", "Prefix Matches to Filter", "", "List of prefix matches to filter, separated by comma. accepts regex patterns.");
+            var _LogMuteInclude = Config.Bind("General", "Infix Matches to Filter", "", "List of infix matches to filter, separated by comma. accepts regex patterns.");
+            LogMuteCustom.AddRange(_LogMuteExact.Value.Split(',').Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => new Regex("^\\s*" + x.Trim() + "\\s*$")));
+            LogMuteCustom.AddRange(_LogMuteStartWith.Value.Split(',').Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => new Regex("^\\s*" + x.Trim())));
+            LogMuteCustom.AddRange(_LogMuteInclude.Value.Split(',').Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => new Regex(x.Trim())));
+            Harmony.PatchAll(typeof(ScaryClassVanilla));
+            Harmony.PatchAll(typeof(ScaryClassVanillaFormat));
+            Harmony.PatchAll(typeof(ScaryClassVanillaException));
+            Harmony.PatchAll(typeof(ScaryClassModded));
+            // vanilla patches
             IL.RoR2.EffectComponent.Start += EffectComponent_Start;
             IL.RoR2.EffectManagerHelper.Reset += EffectManagerHelper_Reset;
             IL.RoR2.EffectManagerHelper.StopAllParticleSystems += EffectManagerHelper_StopAllParticleSystems;
