@@ -38,9 +38,9 @@ namespace LogMute
             var _LogMuteExact = Config.Bind("General", "Exact Matches to Filter", "Teambuff", "List of exact matches to filter, separated by comma. accepts regex patterns.");
             var _LogMuteStartWith = Config.Bind("General", "Prefix Matches to Filter", "", "List of prefix matches to filter, separated by comma. accepts regex patterns.");
             var _LogMuteInclude = Config.Bind("General", "Infix Matches to Filter", "", "List of infix matches to filter, separated by comma. accepts regex patterns.");
-            LogMuteCustom.AddRange(_LogMuteExact.Value.Split(',').Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => new Regex("^\\s*" + x.Trim() + "\\s*$")));
-            LogMuteCustom.AddRange(_LogMuteStartWith.Value.Split(',').Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => new Regex("^\\s*" + x.Trim())));
-            LogMuteCustom.AddRange(_LogMuteInclude.Value.Split(',').Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => new Regex(x.Trim())));
+            LogMuteCustom.AddRange(CustomSplit(_LogMuteExact.Value).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => new Regex("^\\s*" + x.Trim() + "\\s*$")));
+            LogMuteCustom.AddRange(CustomSplit(_LogMuteStartWith.Value).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => new Regex("^\\s*" + x.Trim())));
+            LogMuteCustom.AddRange(CustomSplit(_LogMuteInclude.Value).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => new Regex(x.Trim())));
             Harmony.PatchAll(typeof(ScaryClassVanilla));
             Harmony.PatchAll(typeof(ScaryClassVanillaFormat));
             Harmony.PatchAll(typeof(ScaryClassVanillaException));
@@ -60,6 +60,32 @@ namespace LogMute
             new ILHook(AccessTools.DeclaredPropertyGetter(typeof(ItemDef), nameof(ItemDef.itemIndex)), NoFix);
             new ILHook(AccessTools.DeclaredPropertyGetter(typeof(ItemTierDef), nameof(ItemTierDef.tier)), NoFix);
             new ILHook(AccessTools.DeclaredPropertyGetter(typeof(EquipmentDef), nameof(EquipmentDef.equipmentIndex)), NoFix);
+        }
+        public static string[] CustomSplit(string str)
+        {
+            List<string> res = [];
+            string txt = "";
+            for (int i = 0; i < str.Length; i++)
+            {
+                if (str[i] == ',')
+                {
+                    res.Add(txt);
+                    txt = "";
+                }
+                else if (i + 1 < str.Length && str[i] == '\\' && str[i + 1] == ',')
+                {
+                    txt += ',';
+                    i++;
+                }
+                else if (i + 1 < str.Length && str[i] == '\\' && str[i + 1] == '\\')
+                {
+                    txt += "\\\\";
+                    i++;
+                }
+                else txt += str[i];
+            }
+            res.Add(txt);
+            return res.ToArray();
         }
 
         private static void NoRegister(ILContext il)
