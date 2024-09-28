@@ -9,6 +9,7 @@ namespace LogMute
     {
         public static ConfigFile myConfig;
 
+        public static ConfigEntry<bool> muteVanilla;
         public static ConfigEntry<string> exactMatch;
         public static ConfigEntry<string> prefixMatch;
         public static ConfigEntry<string> infixMatch;
@@ -20,6 +21,12 @@ namespace LogMute
 
             if (LogMutePlugin.RooInstalled)
                 InitRoO();
+
+            muteVanilla = BindOption("General",
+                "Mute Vanilla Logs",
+                true,
+                "Mutes a handful of the more annoying and spammy logs present in vanilla.",
+                true);
 
             exactMatch = BindOption("General",
                 "Exact Matches to Filter",

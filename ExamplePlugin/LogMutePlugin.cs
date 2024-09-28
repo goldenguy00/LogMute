@@ -11,6 +11,7 @@ using LogMute.Patches;
 
 namespace LogMute
 {
+    [BepInDependency("com.rune580.riskofoptions", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInPlugin(PluginGUID, PluginName, PluginVersion)]
     public class LogMutePlugin : BaseUnityPlugin
     {
@@ -28,8 +29,9 @@ namespace LogMute
             Instance = this;
 
             PluginConfig.Init();
-            VanillaPatches.Init();
             MuteHarmonyPatches.Init();
+            if (PluginConfig.muteVanilla.Value)
+                VanillaPatches.Init();
         }
     }
 }

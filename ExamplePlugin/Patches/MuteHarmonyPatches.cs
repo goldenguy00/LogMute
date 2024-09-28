@@ -14,7 +14,7 @@ namespace LogMute.Patches
 
         public static void Init()
         {
-            PluginConfig.myConfig.ConfigReloaded += ConfigReloaded;
+            PluginConfig.myConfig.SettingChanged += ConfigReloaded;
 
             ConfigReloaded(null, null);
 
@@ -33,7 +33,7 @@ namespace LogMute.Patches
             .. CustomSplit(PluginConfig.infixMatch.Value).Select(x => new Regex(x.Trim()))
         ];
 
-        private static string[] CustomSplit(string str)
+        private static IEnumerable<string> CustomSplit(string str)
         {
             List<string> res = [];
             var txt = string.Empty;
@@ -59,7 +59,7 @@ namespace LogMute.Patches
             }
 
             res.Add(txt);
-            return [.. res.Where(x => !string.IsNullOrWhiteSpace(x))];
+            return res.Where(x => !string.IsNullOrWhiteSpace(x));
         }
     }
 }
