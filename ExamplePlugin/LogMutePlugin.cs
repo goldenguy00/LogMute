@@ -1,10 +1,16 @@
 using BepInEx;
+using BepInEx.Configuration;
+using BepInEx.Logging;
 using HarmonyLib;
 using MonoMod.Cil;
 using MonoMod.RuntimeDetour;
 using RoR2;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.Networking;
+using static RoR2.Console;
 
 namespace LogMute
 {
@@ -15,6 +21,10 @@ namespace LogMute
         public const string PluginAuthor = "score";
         public const string PluginName = "LogMute";
         public const string PluginVersion = "1.0.0";
+        public static Harmony Harmony;
+        public static ConfigFile Config;
+        public static List<Regex> LogMuteCustom = [];
+        public static bool RegexExclude(string content) => !LogMuteCustom.Any(x => x.IsMatch(content));
 
         private static void Fuck(object you) { }
         private static void FuckUnity(object you, Object fuck) { }
@@ -23,6 +33,19 @@ namespace LogMute
 
         public void Awake()
         {
+            Harmony = new(PluginGUID);
+            Config = new(System.IO.Path.Combine(Paths.ConfigPath, PluginGUID + ".cfg"), true);
+            var _LogMuteExact = Config.Bind("General", "Exact Matches to Filter", "Teambuff", "List of exact matches to filter, separated by comma. accepts regex patterns.");
+            var _LogMuteStartWith = Config.Bind("General", "Prefix Matches to Filter", "", "List of prefix matches to filter, separated by comma. accepts regex patterns.");
+            var _LogMuteInclude = Config.Bind("General", "Infix Matches to Filter", "", "List of infix matches to filter, separated by comma. accepts regex patterns.");
+            LogMuteCustom.AddRange(CustomSplit(_LogMuteExact.Value).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => new Regex("^\\s*" + x.Trim() + "\\s*$")));
+            LogMuteCustom.AddRange(CustomSplit(_LogMuteStartWith.Value).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => new Regex("^\\s*" + x.Trim())));
+            LogMuteCustom.AddRange(CustomSplit(_LogMuteInclude.Value).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => new Regex(x.Trim())));
+            Harmony.PatchAll(typeof(ScaryClassVanilla));
+            Harmony.PatchAll(typeof(ScaryClassVanillaFormat));
+            Harmony.PatchAll(typeof(ScaryClassVanillaException));
+            Harmony.PatchAll(typeof(ScaryClassModded));
+            // vanilla patches
             IL.RoR2.EffectComponent.Start += EffectComponent_Start;
             IL.RoR2.EffectManagerHelper.Reset += EffectManagerHelper_Reset;
             IL.RoR2.EffectManagerHelper.StopAllParticleSystems += EffectManagerHelper_StopAllParticleSystems;
@@ -37,6 +60,32 @@ namespace LogMute
             new ILHook(AccessTools.DeclaredPropertyGetter(typeof(ItemDef), nameof(ItemDef.itemIndex)), NoFix);
             new ILHook(AccessTools.DeclaredPropertyGetter(typeof(ItemTierDef), nameof(ItemTierDef.tier)), NoFix);
             new ILHook(AccessTools.DeclaredPropertyGetter(typeof(EquipmentDef), nameof(EquipmentDef.equipmentIndex)), NoFix);
+        }
+        public static string[] CustomSplit(string str)
+        {
+            List<string> res = [];
+            string txt = "";
+            for (int i = 0; i < str.Length; i++)
+            {
+                if (str[i] == ',')
+                {
+                    res.Add(txt);
+                    txt = "";
+                }
+                else if (i + 1 < str.Length && str[i] == '\\' && str[i + 1] == ',')
+                {
+                    txt += ',';
+                    i++;
+                }
+                else if (i + 1 < str.Length && str[i] == '\\' && str[i + 1] == '\\')
+                {
+                    txt += "\\\\";
+                    i++;
+                }
+                else txt += str[i];
+            }
+            res.Add(txt);
+            return res.ToArray();
         }
 
         private static void NoRegister(ILContext il)
